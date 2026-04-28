@@ -36,4 +36,6 @@ class HC_Dx12 : public Shader_Dx12
                   D3D12_RESOURCE_STATES state);
 
     HC_Dx12(std::string InName, ID3D12Device* InDevice);
+
+    ~HC_Dx12();
 };

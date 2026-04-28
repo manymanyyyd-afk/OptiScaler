@@ -47,7 +47,7 @@ void RUI_Dx12::SetBufferState(UINT index, ID3D12GraphicsCommandList* InCommandLi
     if (_bufferState[index] == InState)
         return;
 
-    ResourceBarrier(InCommandList, _buffer[index].Get(), _bufferState[index], InState);
+    ResourceBarrier(InCommandList, _buffer[index], _bufferState[index], InState);
 
     _bufferState[index] = InState;
 }
@@ -79,7 +79,7 @@ RUI_Dx12::RUI_Dx12(std::string InName, ID3D12Device* InDevice, bool preMultiplie
     ID3DBlob *vs, *ps;
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPsoDesc {};
-    graphicsPsoDesc.pRootSignature = _rootSignature.Get();
+    graphicsPsoDesc.pRootSignature = _rootSignature;
 
     if (Config::Instance()->UsePrecompiledShaders.value_or_default())
     {
@@ -204,7 +204,7 @@ bool RUI_Dx12::Dispatch(IDXGISwapChain3* sc, ID3D12GraphicsCommandList* cmdList,
     ResourceBarrier(cmdList, scBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
     if (_buffer[_counter] != nullptr)
-        cmdList->CopyResource(_buffer[_counter].Get(), scBuffer);
+        cmdList->CopyResource(_buffer[_counter], scBuffer);
 
     ResourceBarrier(cmdList, scBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     SetBufferState(_counter, cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -220,14 +220,14 @@ bool RUI_Dx12::Dispatch(IDXGISwapChain3* sc, ID3D12GraphicsCommandList* cmdList,
 
     // Create views
     CreateShaderResourceView(_device, hudless, currentHeap.GetSrvCPU(0));
-    CreateShaderResourceView(_device, _buffer[_counter].Get(), currentHeap.GetSrvCPU(1));
+    CreateShaderResourceView(_device, _buffer[_counter], currentHeap.GetSrvCPU(1));
     CreateRenderTargetView(_device, scBuffer, currentHeap.GetRtvCPU(0), 0);
 
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    cmdList->SetGraphicsRootSignature(_rootSignature.Get());
-    cmdList->SetPipelineState(_pipelineState.Get());
+    cmdList->SetGraphicsRootSignature(_rootSignature);
+    cmdList->SetPipelineState(_pipelineState);
 
     cmdList->SetGraphicsRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
@@ -257,4 +257,27 @@ bool RUI_Dx12::Dispatch(IDXGISwapChain3* sc, ID3D12GraphicsCommandList* cmdList,
         ResourceBarrier(cmdList, hudless, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, state);
 
     return true;
+}
+
+RUI_Dx12::~RUI_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    if (_rootSignature != nullptr)
+    {
+        _rootSignature->Release();
+        _rootSignature = nullptr;
+    }
+
+    for (int i = 0; i < HC_NUM_OF_HEAPS; i++)
+    {
+        _frameHeaps[i].ReleaseHeaps();
+    }
+
+    if (_constantBuffer != nullptr)
+    {
+        _constantBuffer->Release();
+        _constantBuffer = nullptr;
+    }
 }

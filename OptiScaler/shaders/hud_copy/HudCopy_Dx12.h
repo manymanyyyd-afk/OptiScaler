@@ -20,7 +20,7 @@ class HudCopy_Dx12 : public Shader_Dx12
 
     FrameDescriptorHeap _frameHeaps[HudCopy_NUM_OF_HEAPS];
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> _buffer = nullptr;
+    ID3D12Resource* _buffer = nullptr;
 
     uint32_t InNumThreadsX = 16;
     uint32_t InNumThreadsY = 16;
@@ -33,4 +33,6 @@ class HudCopy_Dx12 : public Shader_Dx12
                   D3D12_RESOURCE_STATES hudlessState, D3D12_RESOURCE_STATES presentState, float hudDetectionThreshold);
 
     HudCopy_Dx12(std::string InName, ID3D12Device* InDevice);
+
+    ~HudCopy_Dx12();
 };

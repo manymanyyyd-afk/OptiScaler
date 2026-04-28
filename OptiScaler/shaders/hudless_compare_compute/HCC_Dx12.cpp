@@ -49,24 +49,24 @@ bool HCC_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* hudl
 
     ResourceBarrier(cmdList, present, presentState, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-    cmdList->CopyResource(_buffer.Get(), present);
+    cmdList->CopyResource(_buffer, present);
 
     // Make sure present is in D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
     ResourceBarrier(cmdList, present, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    ResourceBarrier(cmdList, _buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    ResourceBarrier(cmdList, _buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     ResourceBarrier(cmdList, hudless, hudlessState, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     // Create views
     CreateShaderResourceView(_device, hudless, currentHeap.GetSrvCPU(0));
     CreateShaderResourceView(_device, present, currentHeap.GetSrvCPU(1));
-    CreateUnorderedAccessView(_device, _buffer.Get(), currentHeap.GetUavCPU(0), 0);
+    CreateUnorderedAccessView(_device, _buffer, currentHeap.GetUavCPU(0), 0);
 
     InternalCompareParams constants {};
     constants.DiffThreshold = 0.003f;
     constants.PinkAmount = 0.6f;
 
-    if (!CreateConstantsBuffer(_device, _constantBuffer.Get(), constants, currentHeap.GetCbvCPU(0)))
+    if (!CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0)))
     {
         LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
         return false;
@@ -75,8 +75,8 @@ bool HCC_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* hudl
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    cmdList->SetComputeRootSignature(_rootSignature.Get());
-    cmdList->SetPipelineState(_pipelineState.Get());
+    cmdList->SetComputeRootSignature(_rootSignature);
+    cmdList->SetPipelineState(_pipelineState);
 
     cmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
@@ -86,15 +86,15 @@ bool HCC_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* hudl
 
     cmdList->Dispatch(dispatchWidth, dispatchHeight, 1);
 
-    ResourceBarrier(cmdList, _buffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    ResourceBarrier(cmdList, _buffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
     ResourceBarrier(cmdList, present, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
 
-    cmdList->CopyResource(present, _buffer.Get());
+    cmdList->CopyResource(present, _buffer);
 
     // Restore resource states
     ResourceBarrier(cmdList, present, D3D12_RESOURCE_STATE_COPY_DEST, presentState);
     ResourceBarrier(cmdList, hudless, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, hudlessState);
-    ResourceBarrier(cmdList, _buffer.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+    ResourceBarrier(cmdList, _buffer, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
 
     return true;
 }
@@ -135,4 +135,21 @@ HCC_Dx12::HCC_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(InN
     }
 
     _init = InitHeaps(InDevice, _frameHeaps, HCC_NUM_OF_HEAPS);
+}
+
+HCC_Dx12::~HCC_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    for (int i = 0; i < HCC_NUM_OF_HEAPS; i++)
+    {
+        _frameHeaps[i].ReleaseHeaps();
+    }
+
+    if (_buffer != nullptr)
+    {
+        _buffer->Release();
+        _buffer = nullptr;
+    }
 }

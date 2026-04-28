@@ -29,7 +29,7 @@ bool DI_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSou
 
 void DI_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_RESOURCE_STATES InState)
 {
-    return Shader_Dx12::SetBufferState(InCommandList, InState, _buffer.Get(), &_bufferState);
+    return Shader_Dx12::SetBufferState(InCommandList, InState, _buffer, &_bufferState);
 }
 
 bool DI_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource, ID3D12Resource* OutResource)
@@ -49,8 +49,8 @@ bool DI_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    InCmdList->SetComputeRootSignature(_rootSignature.Get());
-    InCmdList->SetPipelineState(_pipelineState.Get());
+    InCmdList->SetComputeRootSignature(_rootSignature);
+    InCmdList->SetPipelineState(_pipelineState);
 
     InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
@@ -89,4 +89,21 @@ DI_Dx12::DI_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(InNam
     }
 
     _init = InitHeaps(InDevice, _frameHeaps, DI_NUM_OF_HEAPS);
+}
+
+DI_Dx12::~DI_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    for (int i = 0; i < DI_NUM_OF_HEAPS; i++)
+    {
+        _frameHeaps[i].ReleaseHeaps();
+    }
+
+    if (_buffer != nullptr)
+    {
+        _buffer->Release();
+        _buffer = nullptr;
+    }
 }

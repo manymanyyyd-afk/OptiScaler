@@ -46,7 +46,7 @@ bool OS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSou
 
 void OS_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_RESOURCE_STATES InState)
 {
-    return Shader_Dx12::SetBufferState(InCommandList, InState, _buffer.Get(), &_bufferState);
+    return Shader_Dx12::SetBufferState(InCommandList, InState, _buffer, &_bufferState);
 }
 
 bool OS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource, ID3D12Resource* OutResource)
@@ -78,12 +78,11 @@ bool OS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
     if (Config::Instance()->OutputScalingDownscaler.value_or_default() == Scaler::FSR1)
     {
         createdConstantsBuffer =
-            CreateConstantsBuffer(_device, _constantBuffer.Get(), fsr1Constants, currentHeap.GetCbvCPU(0));
+            CreateConstantsBuffer(_device, _constantBuffer, fsr1Constants, currentHeap.GetCbvCPU(0));
     }
     else
     {
-        createdConstantsBuffer =
-            CreateConstantsBuffer(_device, _constantBuffer.Get(), constants, currentHeap.GetCbvCPU(0));
+        createdConstantsBuffer = CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0));
     }
 
     if (!createdConstantsBuffer)
@@ -95,8 +94,8 @@ bool OS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    InCmdList->SetComputeRootSignature(_rootSignature.Get());
-    InCmdList->SetPipelineState(_pipelineState.Get());
+    InCmdList->SetComputeRootSignature(_rootSignature);
+    InCmdList->SetPipelineState(_pipelineState);
 
     InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
@@ -143,7 +142,7 @@ OS_Dx12::OS_Dx12(std::string InName, ID3D12Device* InDevice, bool InUpsample)
         Config::Instance()->OutputScalingDownscaler.value_or_default() == Scaler::FSR1)
     {
         D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
-        computePsoDesc.pRootSignature = _rootSignature.Get();
+        computePsoDesc.pRootSignature = _rootSignature;
         computePsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
         // fsr upscaling
@@ -296,8 +295,7 @@ OS_Dx12::OS_Dx12(std::string InName, ID3D12Device* InDevice, bool InUpsample)
             LOG_ERROR("[{0}] CompileShader error!", _name);
 
         // create pso objects
-        if (!Shader_Dx12::CreateComputeShader(InDevice, _rootSignature.Get(), &_pipelineState, _recEncodeShader,
-                                              byteCode))
+        if (!Shader_Dx12::CreateComputeShader(InDevice, _rootSignature, &_pipelineState, _recEncodeShader, byteCode))
         {
             LOG_ERROR("[{0}] CreateComputeShader error!", _name);
             return;
@@ -311,4 +309,21 @@ OS_Dx12::OS_Dx12(std::string InName, ID3D12Device* InDevice, bool InUpsample)
     }
 
     _init = InitHeaps(InDevice, _frameHeaps, OS_NUM_OF_HEAPS);
+}
+
+OS_Dx12::~OS_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    for (int i = 0; i < OS_NUM_OF_HEAPS; i++)
+    {
+        _frameHeaps[i].ReleaseHeaps();
+    }
+
+    if (_buffer != nullptr)
+    {
+        _buffer->Release();
+        _buffer = nullptr;
+    }
 }

@@ -33,7 +33,7 @@ bool RF_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
 
     LOG_DEBUG("Width: {}, Height: {}, Offset", constants.width, constants.height, constants.offset);
 
-    if (!CreateConstantsBuffer(_device, _constantBuffer.Get(), constants, currentHeap.GetCbvCPU(0)))
+    if (!CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0)))
     {
         LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
         return false;
@@ -42,8 +42,8 @@ bool RF_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    InCmdList->SetComputeRootSignature(_rootSignature.Get());
-    InCmdList->SetPipelineState(_pipelineState.Get());
+    InCmdList->SetComputeRootSignature(_rootSignature);
+    InCmdList->SetPipelineState(_pipelineState);
 
     InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
@@ -104,4 +104,15 @@ RF_Dx12::RF_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(InNam
     }
 
     _init = InitHeaps(InDevice, _frameHeaps, RF_NUM_OF_HEAPS);
+}
+
+RF_Dx12::~RF_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    for (int i = 0; i < RF_NUM_OF_HEAPS; i++)
+    {
+        _frameHeaps[i].ReleaseHeaps();
+    }
 }

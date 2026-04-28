@@ -76,7 +76,7 @@ HC_Dx12::HC_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(InNam
     ID3DBlob *vs, *ps;
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPsoDesc {};
-    graphicsPsoDesc.pRootSignature = _rootSignature.Get();
+    graphicsPsoDesc.pRootSignature = _rootSignature;
 
     if (Config::Instance()->UsePrecompiledShaders.value_or_default())
     {
@@ -209,7 +209,7 @@ bool HC_Dx12::Dispatch(IDXGISwapChain3* sc, ID3D12GraphicsCommandList* cmdList, 
     constants.DiffThreshold = 0.003f;
     constants.PinkAmount = 0.6f;
 
-    if (!CreateConstantsBuffer(_device, _constantBuffer.Get(), constants, currentHeap.GetCbvCPU(0)))
+    if (!CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0)))
     {
         LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
         return false;
@@ -218,8 +218,8 @@ bool HC_Dx12::Dispatch(IDXGISwapChain3* sc, ID3D12GraphicsCommandList* cmdList, 
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    cmdList->SetGraphicsRootSignature(_rootSignature.Get());
-    cmdList->SetPipelineState(_pipelineState.Get());
+    cmdList->SetGraphicsRootSignature(_rootSignature);
+    cmdList->SetPipelineState(_pipelineState);
 
     cmdList->SetGraphicsRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
@@ -249,4 +249,27 @@ bool HC_Dx12::Dispatch(IDXGISwapChain3* sc, ID3D12GraphicsCommandList* cmdList, 
         ResourceBarrier(cmdList, hudless, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, state);
 
     return true;
+}
+
+HC_Dx12::~HC_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    if (_rootSignature != nullptr)
+    {
+        _rootSignature->Release();
+        _rootSignature = nullptr;
+    }
+
+    for (int i = 0; i < HC_NUM_OF_HEAPS; i++)
+    {
+        _frameHeaps[i].ReleaseHeaps();
+    }
+
+    if (_constantBuffer != nullptr)
+    {
+        _constantBuffer->Release();
+        _constantBuffer = nullptr;
+    }
 }

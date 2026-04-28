@@ -6,6 +6,30 @@ using Microsoft::WRL::ComPtr;
 
 Shader_Dx12::Shader_Dx12(std::string InName, ID3D12Device* InDevice) : _name(InName), _device(InDevice) {}
 
+Shader_Dx12::~Shader_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    if (_pipelineState != nullptr)
+    {
+        _pipelineState->Release();
+        _pipelineState = nullptr;
+    }
+
+    if (_rootSignature != nullptr)
+    {
+        _rootSignature->Release();
+        _rootSignature = nullptr;
+    }
+
+    if (_constantBuffer != nullptr)
+    {
+        _constantBuffer->Release();
+        _constantBuffer = nullptr;
+    }
+}
+
 DXGI_FORMAT Shader_Dx12::TranslateTypelessFormats(DXGI_FORMAT format)
 {
     switch (format)
@@ -88,7 +112,7 @@ bool Shader_Dx12::CreateComputePipeline(ID3D12Device* device, ID3D12PipelineStat
     if (!Config::Instance()->UsePrecompiledShaders.value_or_default() && source)
         shaderBlob = CompileShader(source, "CSMain", "cs_5_0");
 
-    return CreateComputeShader(device, _rootSignature.Get(), pipelineState, shaderBlob.Get(),
+    return CreateComputeShader(device, _rootSignature, pipelineState, shaderBlob.Get(),
                                CD3DX12_SHADER_BYTECODE(bytecode, bytecodeSize));
 }
 

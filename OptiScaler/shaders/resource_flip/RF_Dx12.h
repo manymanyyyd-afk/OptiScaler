@@ -22,4 +22,6 @@ class RF_Dx12 : public Shader_Dx12
                   UINT64 width, UINT height, bool velocity);
 
     RF_Dx12(std::string InName, ID3D12Device* InDevice);
+
+    ~RF_Dx12();
 };

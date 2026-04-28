@@ -32,7 +32,7 @@ bool DS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSou
 
 void DS_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_RESOURCE_STATES InState)
 {
-    return Shader_Dx12::SetBufferState(InCommandList, InState, _buffer.Get(), &_bufferState);
+    return Shader_Dx12::SetBufferState(InCommandList, InState, _buffer, &_bufferState);
 }
 
 bool DS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource, ID3D12Resource* OutResource)
@@ -52,7 +52,7 @@ bool DS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
     DSConstants constants {};
     constants.DepthScale = Config::Instance()->FGDepthScaleMax.value_or_default();
 
-    if (!CreateConstantsBuffer(_device, _constantBuffer.Get(), constants, currentHeap.GetCbvCPU(0)))
+    if (!CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0)))
     {
         LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
         return false;
@@ -61,8 +61,8 @@ bool DS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-    InCmdList->SetComputeRootSignature(_rootSignature.Get());
-    InCmdList->SetPipelineState(_pipelineState.Get());
+    InCmdList->SetComputeRootSignature(_rootSignature);
+    InCmdList->SetPipelineState(_pipelineState);
 
     InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
@@ -123,4 +123,21 @@ DS_Dx12::DS_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(InNam
     }
 
     _init = InitHeaps(InDevice, _frameHeaps, DS_NUM_OF_HEAPS);
+}
+
+DS_Dx12::~DS_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    for (int i = 0; i < DS_NUM_OF_HEAPS; i++)
+    {
+        _frameHeaps[i].ReleaseHeaps();
+    }
+
+    if (_buffer != nullptr)
+    {
+        _buffer->Release();
+        _buffer = nullptr;
+    }
 }

@@ -16,7 +16,7 @@ class RUI_Dx12 : public Shader_Dx12
     bool _pm = false;
     FrameDescriptorHeap _frameHeaps[HC_NUM_OF_HEAPS];
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> _buffer[HC_NUM_OF_HEAPS] = {};
+    ID3D12Resource* _buffer[HC_NUM_OF_HEAPS] = {};
     D3D12_RESOURCE_STATES _bufferState[HC_NUM_OF_HEAPS] = { D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COMMON };
 
     static void ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
@@ -32,4 +32,6 @@ class RUI_Dx12 : public Shader_Dx12
     bool IsPreMultipliedAlpha() const { return _pm; }
 
     RUI_Dx12(std::string InName, ID3D12Device* InDevice, bool preMultipliedAlpha);
+
+    ~RUI_Dx12();
 };

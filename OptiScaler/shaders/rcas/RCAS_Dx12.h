@@ -19,10 +19,10 @@ class RCAS_Dx12 : public Shader_Dx12, public RCAS_Common
 
     FrameDescriptorHeap _frameHeaps[RCAS_NUM_OF_HEAPS];
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> _buffer = nullptr;
+    ID3D12Resource* _buffer = nullptr;
     D3D12_RESOURCE_STATES _bufferState = D3D12_RESOURCE_STATE_COMMON;
 
-    Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineStateDA = nullptr;
+    ID3D12PipelineState* _pipelineStateDA = nullptr;
 
     uint32_t InNumThreadsX = 16;
     uint32_t InNumThreadsY = 16;
@@ -39,8 +39,10 @@ class RCAS_Dx12 : public Shader_Dx12, public RCAS_Common
     bool Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource, ID3D12Resource* InMotionVectors,
                   RcasConstants InConstants, ID3D12Resource* OutResource, ID3D12Resource* InDepth = nullptr);
 
-    ID3D12Resource* Buffer() { return _buffer.Get(); }
+    ID3D12Resource* Buffer() { return _buffer; }
     bool CanRender() const { return _init && _buffer != nullptr; }
 
     RCAS_Dx12(std::string InName, ID3D12Device* InDevice);
+
+    ~RCAS_Dx12();
 };
