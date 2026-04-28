@@ -1001,20 +1001,6 @@ void KeyUp(UINT vKey)
     inputFpsCycle = vKey == Config::Instance()->FpsCycleShortcutKey.value_or_default();
 }
 
-bool usesCompatLayer(Upscaler upscaler)
-{
-    switch (upscaler)
-    {
-    case Upscaler::XeSS_on12:
-    case Upscaler::FSR21_on12:
-    case Upscaler::FSR22_on12:
-    case Upscaler::FFX_on12:
-        return true;
-    default:
-        return false;
-    }
-}
-
 Upscaler MenuCommon::GetBackendCode(const API api)
 {
     Upscaler upscaler;
@@ -1835,7 +1821,7 @@ bool MenuCommon::RenderMenu()
 
             if (hasFeature)
             {
-                const bool usesDx12CompatLayer = usesCompatLayer(currentFeature->GetUpscalerType());
+                const bool usesDx12CompatLayer = currentFeature->IsWithDx12();
 
                 featurePart = StrFmt(" | %s -> %s %u.%u.%u%s", ApiUpscalerInputName(state.currentInputApiName).c_str(),
                                      currentFeature->ShortName().c_str(), currentFeature->Version().major,
@@ -2298,7 +2284,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushItemWidth(180.0f * menuResScale);
 
                     const bool usesDlssd = currentFeature->GetUpscalerType() == Upscaler::DLSSD;
-                    const bool usesDx12CompatLayer = usesCompatLayer(currentFeature->GetUpscalerType());
+                    const bool usesDx12CompatLayer = currentFeature->IsWithDx12();
 
                     switch (state.api)
                     {
@@ -2411,9 +2397,7 @@ bool MenuCommon::RenderMenu()
                     const bool usesDlssd = currentFeature->GetUpscalerType() == Upscaler::DLSSD;
 
                     // Dx11 with Dx12
-                    if (state.api == DX11 && config->Dx11Upscaler.value_or_default() != Upscaler::FSR22 &&
-                        config->Dx11Upscaler.value_or_default() != Upscaler::DLSS &&
-                        config->Dx11Upscaler.value_or_default() != Upscaler::FFX)
+                    if (state.api == DX11 && currentFeature->IsWithDx12())
                     {
                         ImGui::Spacing();
                         if (auto ch = ScopedCollapsingHeader("Dx11 with Dx12 Settings"); ch.IsHeaderOpen())
