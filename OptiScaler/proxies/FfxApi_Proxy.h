@@ -262,6 +262,11 @@ class FfxApiProxy
 
             // hacky but works for now
             main_dx12.isLoader = IsLoader(main_dx12.filePath);
+
+            if (!main_dx12.isLoader)
+            {
+                FSR4ModelSelection::Hook(main_dx12.dll, FSR4Source::SDK);
+            }
         }
 
         // Get methods of Opti's dlls
