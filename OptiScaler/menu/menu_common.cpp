@@ -2173,9 +2173,9 @@ bool MenuCommon::RenderMenu()
                 ImGui::Spacing();
 
                 if (config->UseHQFont.value_or_default())
-                    ImGui::PushFontSize(std::round(fontSize * menuResScale * 3.0f));
+                    ImGui::PushFontSize(std::round(fontSize * menuResScale * 2.5f));
                 else
-                    ImGui::SetWindowFontScale(menuResScale * 3.0f);
+                    ImGui::SetWindowFontScale(menuResScale * 2.5f);
 
                 if (state.nvngxExists || state.nvngxReplacement.has_value() ||
                     (state.libxessExists || XeSSProxy::Module() != nullptr))
@@ -2197,9 +2197,8 @@ bool MenuCommon::RenderMenu()
 
                     std::string joinedUpscalers(joined.begin(), joined.end());
 
-                    ImGui::Text("Please select %s as upscaler\nfrom game options and load into a save (if not "
-                                "showing)\nto enable "
-                                "upscaler settings.\n",
+                    ImGui::Text("Please select %s as upscaler from game\noptions and load a save game "
+                                "to enable Opti settings.\nUpscalers don't always work in menus.",
                                 joinedUpscalers.c_str());
 
                     if (config->UseHQFont.value_or_default())
