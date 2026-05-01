@@ -1054,7 +1054,7 @@ void MenuCommon::RenderUpscalerCombo(const API api, Upscaler currentUpscaler, co
 void MenuCommon::AddDx11Backends(Upscaler upscaler)
 {
     RenderUpscalerCombo(API::DX11, upscaler,
-                        { Upscaler::XeSS, Upscaler::FSR22, Upscaler::FFX, Upscaler::XeSS_on12, Upscaler::FSR21_on12,
+                        { Upscaler::XeSS, Upscaler::FSR22, Upscaler::FSR31, Upscaler::XeSS_on12, Upscaler::FSR21_on12,
                           Upscaler::FSR22_on12, Upscaler::FFX_on12, Upscaler::DLSS });
 }
 
@@ -1067,7 +1067,7 @@ void MenuCommon::AddDx12Backends(Upscaler upscaler)
 void MenuCommon::AddVulkanBackends(Upscaler upscaler)
 {
     RenderUpscalerCombo(API::Vulkan, upscaler,
-                        { Upscaler::XeSS, Upscaler::FSR21, Upscaler::FSR22, Upscaler::FSR31, Upscaler::FSR21_on12,
+                        { Upscaler::XeSS, Upscaler::FSR21, Upscaler::FSR22, Upscaler::FFX, Upscaler::FSR21_on12,
                           Upscaler::FFX_on12, Upscaler::DLSS });
 }
 
