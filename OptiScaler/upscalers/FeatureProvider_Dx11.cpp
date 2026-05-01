@@ -16,6 +16,7 @@
 #include "upscalers/xess/XeSSFeature_Dx11.h"
 #include "upscalers/xess/XeSSFeature_Dx11on12.h"
 #include <misc/IdentifyGpu.h>
+#include <imgui/ImGuiNotify.hpp>
 
 bool FeatureProvider_Dx11::GetFeature(Upscaler upscaler, UINT handleId, NVSDK_NGX_Parameter* parameters,
                                       std::unique_ptr<IFeature_Dx11>* feature)

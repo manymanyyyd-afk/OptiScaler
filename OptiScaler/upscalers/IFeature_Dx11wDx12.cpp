@@ -267,11 +267,13 @@ void IFeature_Dx11wDx12::ReleaseSharedResources()
 
     ReleaseSyncResources();
 
-    SAFE_RELEASE(Dx12CommandList[0]);
-    SAFE_RELEASE(Dx12CommandList[1]);
+    for (int i = 0; i < DX11WDX12_NUM_OF_BUFFERS; i++)
+    {
+        SAFE_RELEASE(Dx12CommandList[i]);
+        SAFE_RELEASE(Dx12CommandAllocator[i]);
+    }
+
     SAFE_RELEASE(Dx12CommandQueue);
-    SAFE_RELEASE(Dx12CommandAllocator[0]);
-    SAFE_RELEASE(Dx12CommandAllocator[1]);
     SAFE_RELEASE(Dx12Fence);
 
     if (Dx12FenceEvent)
@@ -448,7 +450,7 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
         WaitForSingleObject(Dx12FenceEvent, INFINITE);
     }
 
-    auto frame = _frameCount % 2;
+    auto frame = _frameCount % DX11WDX12_NUM_OF_BUFFERS;
 
     result = Dx12CommandAllocator[frame]->Reset();
     if (result != S_OK)
@@ -504,13 +506,13 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
         return false;
     }
 
-    if (InParameters->Get(NVSDK_NGX_Parameter_Output, &paramOutput[_frameCount % 2]) != NVSDK_NGX_Result_Success)
-        InParameters->Get(NVSDK_NGX_Parameter_Output, (void**) &paramOutput[_frameCount % 2]);
+    if (InParameters->Get(NVSDK_NGX_Parameter_Output, &paramOutput[frame]) != NVSDK_NGX_Result_Success)
+        InParameters->Get(NVSDK_NGX_Parameter_Output, (void**) &paramOutput[frame]);
 
-    if (paramOutput[_frameCount % 2])
+    if (paramOutput[frame])
     {
         LOG_DEBUG("Output exist..");
-        if (CopyTextureFrom11To12(paramOutput[_frameCount % 2], &dx11Out, false, false, dontUseNTS) == false)
+        if (CopyTextureFrom11To12(paramOutput[frame], &dx11Out, false, false, dontUseNTS) == false)
             return false;
     }
     else
@@ -678,7 +680,7 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
         dx11Mv.Dx11Handle = dx11Mv.Dx12Handle;
     }
 
-    if (paramOutput[_frameCount % 2] && dx11Out.Dx12Handle != dx11Out.Dx11Handle)
+    if (paramOutput[frame] && dx11Out.Dx12Handle != dx11Out.Dx11Handle)
     {
         if (dx11Out.Dx12Handle != NULL)
             CloseHandle(dx11Out.Dx12Handle);
@@ -762,11 +764,129 @@ bool IFeature_Dx11wDx12::CopyBackOutput()
         Dx11DeviceContext->Wait(dx11FenceTextureCopy, _fenceValue);
         _fenceValue++;
 
+        auto frame = _frameCount % DX11WDX12_NUM_OF_BUFFERS;
+
         // Copy Back
-        Dx11DeviceContext->CopyResource(paramOutput[_frameCount % 2], dx11Out.SharedTexture);
+        Dx11DeviceContext->CopyResource(paramOutput[frame], dx11Out.SharedTexture);
     }
 
     return true;
+}
+
+bool IFeature_Dx11wDx12::Init(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, NVSDK_NGX_Parameter* InParameters)
+{
+    LOG_FUNC();
+
+    if (IsInited())
+        return true;
+
+    Device = InDevice;
+    DeviceContext = InContext;
+
+    if (!BaseInit(Device, InContext, InParameters))
+    {
+        LOG_DEBUG("BaseInit failed!");
+        return false;
+    }
+
+    SetInitParameters(InParameters);
+
+    // Non-DLSS upscalers don't use the cmdList during Init
+    // We have more than one cmdList so unsure how that would even work
+    SetInit(dx12Feature->Init(_dx11on12Device, Dx12CommandList[0], InParameters));
+
+    return IsInited();
+}
+
+bool IFeature_Dx11wDx12::Evaluate(ID3D11DeviceContext* InDeviceContext, NVSDK_NGX_Parameter* InParameters)
+{
+    LOG_FUNC();
+
+    auto& cfg = *Config::Instance();
+    const auto& ngxParams = *InParameters;
+
+    if (!IsInited())
+        return false;
+
+    ID3D11DeviceContext4* dc;
+    auto result = InDeviceContext->QueryInterface(IID_PPV_ARGS(&dc));
+
+    if (result != S_OK)
+    {
+        LOG_ERROR("QueryInterface error: {0:x}", result);
+        return false;
+    }
+
+    if (dc != Dx11DeviceContext)
+    {
+        LOG_WARN("Dx11DeviceContext changed!");
+        ReleaseSharedResources();
+        Dx11DeviceContext = dc;
+    }
+
+    if (dc != nullptr)
+        dc->Release();
+
+    auto frame = _frameCount % DX11WDX12_NUM_OF_BUFFERS;
+    auto cmdList = Dx12CommandList[frame];
+
+    bool dx12EvalResult = false;
+    do
+    {
+        if (!ProcessDx11Textures(InParameters))
+        {
+            LOG_ERROR("Can't process Dx11 textures!");
+            break;
+        }
+
+        if (State::Instance().changeBackend[Handle()->Id])
+        {
+            break;
+        }
+
+        InParameters->Set(NVSDK_NGX_Parameter_Color, dx11Color.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_MotionVectors, dx11Mv.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_Output, dx11Out.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_Depth, dx11Depth.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_ExposureTexture, dx11Exp.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, dx11Reactive.Dx12Resource);
+
+        LOG_DEBUG("Dispatch!!");
+        dx12EvalResult = dx12Feature->Evaluate(cmdList, InParameters);
+
+        // Should we restore the resources in the params to DX11 ???
+
+    } while (false);
+
+    if (dx12EvalResult)
+    {
+        cmdList->Close();
+        ID3D12CommandList* ppCommandLists[] = { cmdList };
+        Dx12CommandQueue->ExecuteCommandLists(1, ppCommandLists);
+        Dx12CommandQueue->Signal(dx12FenceTextureCopy, _fenceValue);
+    }
+
+    auto evalResult = false;
+
+    do
+    {
+        if (!dx12EvalResult)
+            break;
+
+        if (!CopyBackOutput())
+        {
+            LOG_ERROR("Can't copy output texture back!");
+            break;
+        }
+
+        evalResult = true;
+
+    } while (false);
+
+    _frameCount++;
+    Dx12CommandQueue->Signal(Dx12Fence, _frameCount);
+
+    return evalResult;
 }
 
 bool IFeature_Dx11wDx12::BaseInit(ID3D11Device* InDevice, ID3D11DeviceContext* InContext,
@@ -836,33 +956,9 @@ IFeature_Dx11wDx12::~IFeature_Dx11wDx12()
 
     ReleaseSharedResources();
 
-    if (Imgui != nullptr && Imgui.get() != nullptr)
-    {
-        Imgui.reset();
-        Imgui = nullptr;
-    }
-
     if (DT != nullptr && DT.get() != nullptr)
     {
         DT.reset();
         DT = nullptr;
-    }
-
-    if (OutputScaler != nullptr && OutputScaler.get() != nullptr)
-    {
-        OutputScaler.reset();
-        OutputScaler = nullptr;
-    }
-
-    if (RCAS != nullptr && RCAS.get() != nullptr)
-    {
-        RCAS.reset();
-        RCAS = nullptr;
-    }
-
-    if (Bias != nullptr && Bias.get() != nullptr)
-    {
-        Bias.reset();
-        Bias = nullptr;
     }
 }

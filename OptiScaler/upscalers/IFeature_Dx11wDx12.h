@@ -11,6 +11,9 @@
 #include <d3d12.h>
 #include <d3d11_4.h>
 #include <dxgi1_6.h>
+#include "IFeature_Dx12.h"
+
+#define DX11WDX12_NUM_OF_BUFFERS 2
 
 class IFeature_Dx11wDx12 : public virtual IFeature_Dx11
 {
@@ -35,6 +38,8 @@ class IFeature_Dx11wDx12 : public virtual IFeature_Dx11
         HANDLE Dx12Handle = NULL;
     };
 
+    std::unique_ptr<IFeature_Dx12> dx12Feature = nullptr;
+
     // D3D11
     ID3D11Device5* Dx11Device = nullptr;
     ID3D11DeviceContext4* Dx11DeviceContext = nullptr;
@@ -42,8 +47,8 @@ class IFeature_Dx11wDx12 : public virtual IFeature_Dx11
     D3D12_COMMAND_LIST_TYPE Dx12CommandListType = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
     ID3D12CommandQueue* Dx12CommandQueue = nullptr;
-    ID3D12CommandAllocator* Dx12CommandAllocator[2] = { nullptr, nullptr };
-    ID3D12GraphicsCommandList* Dx12CommandList[2] = { nullptr, nullptr };
+    ID3D12CommandAllocator* Dx12CommandAllocator[DX11WDX12_NUM_OF_BUFFERS] {};
+    ID3D12GraphicsCommandList* Dx12CommandList[DX11WDX12_NUM_OF_BUFFERS] {};
     ID3D12Fence* Dx12Fence = nullptr;
     HANDLE Dx12FenceEvent = nullptr;
 
@@ -54,16 +59,13 @@ class IFeature_Dx11wDx12 : public virtual IFeature_Dx11
     D3D11_TEXTURE2D_RESOURCE_C dx11Exp = {};
     D3D11_TEXTURE2D_RESOURCE_C dx11Out = {};
 
-    ID3D11Resource* paramOutput[2] = { nullptr, nullptr };
+    ID3D11Resource* paramOutput[DX11WDX12_NUM_OF_BUFFERS] = {};
 
     ID3D11Fence* dx11FenceTextureCopy = nullptr;
     ID3D12Fence* dx12FenceTextureCopy = nullptr;
     HANDLE dx11SHForTextureCopy = nullptr;
     ULONG _fenceValue = 1;
 
-    std::unique_ptr<OS_Dx12> OutputScaler = nullptr;
-    std::unique_ptr<RCAS_Dx12> RCAS = nullptr;
-    std::unique_ptr<Bias_Dx12> Bias = nullptr;
     std::unique_ptr<DepthTransfer_Dx11> DT = nullptr;
 
     HRESULT CreateDx12Device(D3D_FEATURE_LEVEL InFeatureLevel);
@@ -79,11 +81,20 @@ class IFeature_Dx11wDx12 : public virtual IFeature_Dx11
     void ReleaseSharedResources();
     void ReleaseSyncResources();
 
-  public:
-    virtual bool Init(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, NVSDK_NGX_Parameter* InParameters) = 0;
-    virtual bool Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Parameter* InParameters) = 0;
-
     bool BaseInit(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, NVSDK_NGX_Parameter* InParameters);
+
+  public:
+    bool Init(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, NVSDK_NGX_Parameter* InParameters) final;
+    bool Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Parameter* InParameters) final;
+    feature_version Version() final
+    {
+        if (auto feature = dx12Feature.get(); feature)
+            return feature->Version();
+        else
+            return {};
+    }
+
+    bool IsWithDx12() final { return true; }
 
     IFeature_Dx11wDx12(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters);
 
