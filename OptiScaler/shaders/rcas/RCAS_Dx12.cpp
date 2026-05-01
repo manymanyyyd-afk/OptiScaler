@@ -4,6 +4,7 @@
 
 #include "precompile/RCAS_Shader.h"
 #include "precompile/da_sharpen_Shader.h"
+#include "precompile/lc_da_sharpen_Shader.h"
 
 #include <Config.h>
 
@@ -50,12 +51,12 @@ bool RCAS_Dx12::DispatchRCAS(ID3D12GraphicsCommandList* InCmdList, ID3D12Resourc
     return true;
 }
 
-bool RCAS_Dx12::DispatchDepthAdaptive(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource,
-                                      ID3D12Resource* InMotionVectors, ID3D12Resource* InDepth,
-                                      RcasConstants InConstants, ID3D12Resource* OutResource,
+bool RCAS_Dx12::DispatchDepthAdaptive(ID3D12PipelineState* pipelineState, ID3D12GraphicsCommandList* InCmdList,
+                                      ID3D12Resource* InResource, ID3D12Resource* InMotionVectors,
+                                      ID3D12Resource* InDepth, RcasConstants InConstants, ID3D12Resource* OutResource,
                                       FrameDescriptorHeap& currentHeap)
 {
-    if (InDepth == nullptr || _pipelineStateDA == nullptr || _device == nullptr)
+    if (InDepth == nullptr || pipelineState == nullptr || _device == nullptr)
         return false;
 
     CreateShaderResourceView(_device, InResource, currentHeap.GetSrvCPU(0));
@@ -87,7 +88,7 @@ bool RCAS_Dx12::DispatchDepthAdaptive(ID3D12GraphicsCommandList* InCmdList, ID3D
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
     InCmdList->SetComputeRootSignature(_rootSignature);
-    InCmdList->SetPipelineState(_pipelineStateDA);
+    InCmdList->SetPipelineState(pipelineState);
     InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
     UINT dispatchWidth = static_cast<UINT>((constants.OutputWidth + InNumThreadsX - 1) / InNumThreadsX);
@@ -106,7 +107,7 @@ bool RCAS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InS
 
     if (result)
     {
-        _buffer->SetName(L"RCAS_Buffer");
+        _buffer->SetName(L"RCAS_DA_Buffer");
         _bufferState = InState;
     }
 
@@ -132,13 +133,26 @@ bool RCAS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* I
     _counter = _counter % RCAS_NUM_OF_HEAPS;
     FrameDescriptorHeap& currentHeap = _frameHeaps[_counter];
 
-    const bool useDepthAdaptive = Config::Instance()->UseDepthAwareSharpen.value_or_default() && InDepth != nullptr;
+    auto sharpnessShader = Config::Instance()->SharpnessShader.value_or_default();
 
-    if (useDepthAdaptive)
-        return DispatchDepthAdaptive(InCmdList, InResource, InMotionVectors, InDepth, InConstants, OutResource,
-                                     currentHeap);
-
-    return DispatchRCAS(InCmdList, InResource, InMotionVectors, InConstants, OutResource, currentHeap);
+    if (sharpnessShader == SharpenShader::LocalContrastDepthAware)
+    {
+        return DispatchDepthAdaptive(_pipelineStateLCDA, InCmdList, InResource, InMotionVectors, InDepth, InConstants,
+                                     OutResource, currentHeap);
+    }
+    else if (sharpnessShader == SharpenShader::DepthAware)
+    {
+        return DispatchDepthAdaptive(_pipelineStateDA, InCmdList, InResource, InMotionVectors, InDepth, InConstants,
+                                     OutResource, currentHeap);
+    }
+    else if (sharpnessShader == SharpenShader::RCAS)
+    {
+        return DispatchRCAS(InCmdList, InResource, InMotionVectors, InConstants, OutResource, currentHeap);
+    }
+    else
+    {
+        return false;
+    }
 }
 
 RCAS_Dx12::RCAS_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(InName, InDevice)
@@ -179,7 +193,14 @@ RCAS_Dx12::RCAS_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(I
     if (!CreateComputePipeline(InDevice, &_pipelineStateDA, da_sharpen_cso, sizeof(da_sharpen_cso),
                                daSharpenCode.c_str()))
     {
-        LOG_ERROR("[{0}] Failed to create compute pipeline", _name);
+        LOG_ERROR("[{0}] Failed to create compute pipeline DA", _name);
+        return;
+    }
+
+    if (!CreateComputePipeline(InDevice, &_pipelineStateLCDA, lc_da_sharpen_cso, sizeof(lc_da_sharpen_cso),
+                               lcDASharpenCode.c_str()))
+    {
+        LOG_ERROR("[{0}] Failed to create compute pipeline LCDA", _name);
         return;
     }
 

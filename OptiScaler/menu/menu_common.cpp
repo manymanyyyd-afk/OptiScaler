@@ -5044,11 +5044,11 @@ bool MenuCommon::RenderMenu()
 
                         ImGui::BeginDisabled(!config->RcasEnabled.value_or(rcasEnabled));
 
-                        int useDA = Config::Instance()->UseDepthAwareSharpen.value_or_default();
+                        auto sharpnessShader = (int32_t) Config::Instance()->SharpnessShader.value_or_default();
 
-                        if (ImGui::RadioButton("Use RCAS", &useDA, false))
+                        if (ImGui::RadioButton("RCAS", &sharpnessShader, (int32_t) SharpenShader::RCAS))
                         {
-                            Config::Instance()->UseDepthAwareSharpen = false;
+                            Config::Instance()->SharpnessShader = SharpenShader::RCAS;
                         }
 
                         ShowHelpMarker("Use AMD's RCAS\n"
@@ -5057,12 +5057,28 @@ bool MenuCommon::RenderMenu()
 
                         ImGui::SameLine(0.0f, 6.0f);
 
-                        if (ImGui::RadioButton("Use Depth Aware", &useDA, true))
+                        if (ImGui::RadioButton("Depth Aware (RCAS)", &sharpnessShader,
+                                               (int32_t) SharpenShader::DepthAware))
                         {
-                            Config::Instance()->UseDepthAwareSharpen = true;
+                            Config::Instance()->SharpnessShader = SharpenShader::DepthAware;
                         }
 
-                        ShowHelpMarker("Use Depth Aware Sharpening\n"
+                        ShowHelpMarker("Use Depth Aware Sharpening (RCAS)\n"
+                                       "Smarter sharpening with less artifacts,\n"
+                                       "but also heavier\n\n"
+                                       "The farther away is the object, the more\n"
+                                       "sharpening is applied");
+
+                        ImGui::SameLine(0.0f, 6.0f);
+
+                        if (ImGui::RadioButton("Depth Aware (LC)", &sharpnessShader,
+                                               (int32_t) SharpenShader::LocalContrastDepthAware))
+                        {
+                            Config::Instance()->SharpnessShader = SharpenShader::LocalContrastDepthAware;
+                        }
+
+                        ShowHelpMarker("Use Depth Aware Sharpening (LC)\n"
+                                       "Local contrast based sharpening\n"
                                        "Smarter sharpening with less artifacts,\n"
                                        "but also heavier\n\n"
                                        "The farther away is the object, the more\n"
@@ -5075,7 +5091,7 @@ bool MenuCommon::RenderMenu()
                             config->MotionSharpnessEnabled = overrideMotionSharpness;
                         ShowHelpMarker("Enables sharpness adjustments according to the motion");
 
-                        if (Config::Instance()->UseDepthAwareSharpen.value_or_default())
+                        if (Config::Instance()->SharpnessShader.value_or_default() != SharpenShader::RCAS)
                         {
                             if (bool overrideMSDebug = config->MotionSharpnessDebug.value_or_default();
                                 ImGui::Checkbox("DA + MAS Debug", &overrideMSDebug))
@@ -5190,7 +5206,7 @@ bool MenuCommon::RenderMenu()
 
                             ImGui::BeginDisabled(!config->MotionSharpnessEnabled.value_or_default());
 
-                            if (!Config::Instance()->UseDepthAwareSharpen.value_or_default())
+                            if (Config::Instance()->SharpnessShader.value_or_default() == SharpenShader::RCAS)
                             {
                                 if (bool overrideMSDebug = config->MotionSharpnessDebug.value_or_default();
                                     ImGui::Checkbox("MAS Debug", &overrideMSDebug))

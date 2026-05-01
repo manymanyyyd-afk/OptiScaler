@@ -84,6 +84,13 @@ enum class ApiUpscalerInput
     FSR3_DX12,
 };
 
+enum class SharpenShader
+{
+    RCAS,
+    DepthAware,
+    LocalContrastDepthAware
+};
+
 std::string ApiUpscalerInputName(ApiUpscalerInput upscaler);
 
 std::string UpscalerDisplayName(Upscaler upscaler, API api = API::NotSelected);
@@ -95,3 +102,9 @@ std::string UpscalerToCode(Upscaler upscaler);
 
 // Converts string codes into enum for config
 Upscaler CodeToUpscaler(const std::string& code);
+
+// Converts enum to the string codes for config
+std::string SharpnessShaderToCode(SharpenShader sharpenShader);
+
+// Converts string codes into enum for config
+SharpenShader CodeToSharpnessShader(const std::string& code);

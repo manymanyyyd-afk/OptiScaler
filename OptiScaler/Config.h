@@ -263,18 +263,16 @@ class Config
     CustomOptional<std::wstring, NoDefault> NvapiDllPath;
 
     // Sharpness
+    CustomOptional<SharpenShader> SharpnessShader { SharpenShader::RCAS };
     CustomOptional<bool> OverrideSharpness { false };
     CustomOptional<float> Sharpness { 0.4f };
 
-    // CAS
-    CustomOptional<bool> RcasEnabled { false };
-
     // RCAS
+    CustomOptional<bool> RcasEnabled { false };
     CustomOptional<bool> ContrastEnabled { false };
     CustomOptional<float> Contrast { -0.3f };
 
     // DA Sharpening
-    CustomOptional<bool> UseDepthAwareSharpen { false };
     CustomOptional<float, NoDefault> DADepthScale;
     CustomOptional<float, NoDefault> DADepthBias;
     CustomOptional<bool, NoDefault> DAClampOutput;

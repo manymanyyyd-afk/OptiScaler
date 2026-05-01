@@ -412,6 +412,7 @@ bool Config::Reload(std::filesystem::path iniPath)
 
         // Sharpness
         {
+            SharpnessShader.set_from_config(readString("Sharpness", "Shader", true).transform(CodeToSharpnessShader));
             OverrideSharpness.set_from_config(readBool("Sharpness", "OverrideSharpness"));
 
             if (auto setting = readFloat("Sharpness", "Sharpness"); setting.has_value())
@@ -486,7 +487,6 @@ bool Config::Reload(std::filesystem::path iniPath)
             if (auto setting = readFloat("CAS", "Contrast"); setting.has_value())
                 Contrast.set_from_config(std::clamp(setting.value(), -2.0f, 2.0f));
 
-            UseDepthAwareSharpen.set_from_config(readBool("CAS", "UseDepthAwareSharpen"));
             DADepthScale.set_from_config(readFloat("CAS", "DADepthScale"));
             DADepthBias.set_from_config(readFloat("CAS", "DADepthBias"));
             DAClampOutput.set_from_config(readBool("CAS", "DAClampOutput"));
@@ -1100,6 +1100,12 @@ bool Config::SaveIni()
 
     // Sharpness
     {
+        std::string shader = SharpnessShader.value_for_config()
+                                 .transform(SharpnessShaderToCode) // Turn enum into string
+                                 .value_or("auto");
+
+        ini.SetValue("Sharpness", "Shader", shader.c_str());
+
         ini.SetValue("Sharpness", "OverrideSharpness",
                      GetBoolValue(Instance()->OverrideSharpness.value_for_config()).c_str());
         ini.SetValue("Sharpness", "Sharpness", GetFloatValue(Instance()->Sharpness.value_for_config()).c_str());
@@ -1118,8 +1124,6 @@ bool Config::SaveIni()
         ini.SetValue("CAS", "ContrastEnabled", GetBoolValue(Instance()->ContrastEnabled.value_for_config()).c_str());
         ini.SetValue("CAS", "Contrast", GetFloatValue(Instance()->Contrast.value_for_config()).c_str());
 
-        ini.SetValue("CAS", "UseDepthAwareSharpen",
-                     GetBoolValue(Instance()->UseDepthAwareSharpen.value_for_config()).c_str());
         ini.SetValue("CAS", "DADepthScale", GetFloatValue(Instance()->DADepthScale.value_for_config()).c_str());
         ini.SetValue("CAS", "DADepthBias", GetFloatValue(Instance()->DADepthBias.value_for_config()).c_str());
         ini.SetValue("CAS", "DAClampOutput", GetBoolValue(Instance()->DAClampOutput.value_for_config()).c_str());

@@ -35,35 +35,45 @@ class RCAS_Vk : public Shader_Vk, public RCAS_Common
     VkBuffer _constantBuffer = VK_NULL_HANDLE;
     VkDeviceMemory _constantBufferMemory = VK_NULL_HANDLE;
     VkBuffer _constantBufferDA = VK_NULL_HANDLE;
+    VkBuffer _constantBufferLCDA = VK_NULL_HANDLE;
     VkDeviceMemory _constantBufferMemoryDA = VK_NULL_HANDLE;
+    VkDeviceMemory _constantBufferMemoryLCDA = VK_NULL_HANDLE;
     VkSampler _nearestSampler = VK_NULL_HANDLE;
     void* _mappedConstantBuffer = nullptr;
     void* _mappedConstantBufferDA = nullptr;
+    void* _mappedConstantBufferLCDA = nullptr;
 
     VkDescriptorPool _descriptorPool = VK_NULL_HANDLE;
     VkDescriptorPool _descriptorPoolDA = VK_NULL_HANDLE;
+    VkDescriptorPool _descriptorPoolLCDA = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> _descriptorSets;
     std::vector<VkDescriptorSet> _descriptorSetsDA;
+    std::vector<VkDescriptorSet> _descriptorSetsLCDA;
     uint32_t _currentSetIndex = 0;
     static const int MAX_FRAMES_IN_FLIGHT = 3;
 
     void CreateDescriptorSetLayout();
-    void CreateDescriptorSetLayoutDA();
+    void CreateDescriptorSetLayoutDA(VkDescriptorSetLayout& descriptorSetLayout, VkPipelineLayout& pipelineLayout);
     void CreateDescriptorPool();
-    void CreateDescriptorPoolDA();
+    void CreateDescriptorPoolDA(VkDescriptorPool& descriptorPool);
     void CreateDescriptorSets();
-    void CreateDescriptorSetsDA();
+    void CreateDescriptorSetsDA(VkDescriptorSetLayout descriptorSetLayout, VkDescriptorPool descriptorPool,
+                                std::vector<VkDescriptorSet>& descriptorSets);
     void CreateConstantBuffer();
-    void CreateConstantBufferDA();
+    void CreateConstantBufferDA(VkBuffer& constantBuffer, VkDeviceMemory& constantBufferMemory,
+                                void* mappedConstantBuffer);
     void UpdateDescriptorSet(VkCommandBuffer cmdList, int setIndex, VkImageView inputView, VkImageView motionView,
                              VkImageView outputView);
-    void UpdateDescriptorSetDA(VkCommandBuffer cmdList, int setIndex, VkImageView inputView, VkImageView motionView,
-                               VkImageView depthView, VkImageView outputView);
+    void UpdateDescriptorSetDA(VkDescriptorSet descriptorSet, VkBuffer constantBuffer, VkImageView inputView,
+                               VkImageView motionView, VkImageView depthView, VkImageView outputView);
     bool DispatchRCAS(VkDevice InDevice, VkCommandBuffer InCmdList, RcasConstants InConstants,
-                      VkImageInfo* InResourceView, VkImageInfo* InMotionVectorsInfo, VkImageInfo* OutResourceInfo);
+                      VkImageInfo* InResourceInfo, VkImageInfo* InMotionVectorsInfo, VkImageInfo* OutResourceInfo);
     bool DispatchDepthAdaptive(VkDevice InDevice, VkCommandBuffer InCmdList, RcasConstants InConstants,
-                               VkImageInfo* InResourceView, VkImageInfo* InMotionVectorsInfo,
+                               VkImageInfo* InResourceInfo, VkImageInfo* InMotionVectorsInfo,
                                VkImageInfo* OutResourceInfo, VkImageInfo* InDepthInfo);
+    bool DispatchLCDepthAdaptive(VkDevice InDevice, VkCommandBuffer InCmdList, RcasConstants InConstants,
+                                 VkImageInfo* InResourceInfo, VkImageInfo* InMotionVectorsInfo,
+                                 VkImageInfo* OutResourceInfo, VkImageInfo* InDepthInfo);
 
     VkImageView _intermediateImageView = VK_NULL_HANDLE;
     VkImage _intermediateImage = VK_NULL_HANDLE;
@@ -75,4 +85,8 @@ class RCAS_Vk : public Shader_Vk, public RCAS_Common
     VkPipeline _pipelineDA = VK_NULL_HANDLE;
     VkPipelineLayout _pipelineLayoutDA = VK_NULL_HANDLE;
     VkDescriptorSetLayout _descriptorSetLayoutDA = VK_NULL_HANDLE;
+
+    VkPipeline _pipelineLCDA = VK_NULL_HANDLE;
+    VkPipelineLayout _pipelineLayoutLCDA = VK_NULL_HANDLE;
+    VkDescriptorSetLayout _descriptorSetLayoutLCDA = VK_NULL_HANDLE;
 };
