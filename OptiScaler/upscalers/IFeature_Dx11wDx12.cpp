@@ -842,12 +842,12 @@ bool IFeature_Dx11wDx12::Evaluate(ID3D11DeviceContext* InDeviceContext, NVSDK_NG
             break;
         }
 
-        InParameters->Set(NVSDK_NGX_Parameter_Color, dx11Color.Dx12Resource);
-        InParameters->Set(NVSDK_NGX_Parameter_MotionVectors, dx11Mv.Dx12Resource);
-        InParameters->Set(NVSDK_NGX_Parameter_Output, dx11Out.Dx12Resource);
-        InParameters->Set(NVSDK_NGX_Parameter_Depth, dx11Depth.Dx12Resource);
-        InParameters->Set(NVSDK_NGX_Parameter_ExposureTexture, dx11Exp.Dx12Resource);
-        InParameters->Set(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, dx11Reactive.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_Color, (void*) dx11Color.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_MotionVectors, (void*) dx11Mv.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_Output, (void*) dx11Out.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_Depth, (void*) dx11Depth.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_ExposureTexture, (void*) dx11Exp.Dx12Resource);
+        InParameters->Set(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, (void*) dx11Reactive.Dx12Resource);
 
         LOG_DEBUG("Dispatch!!");
         dx12EvalResult = dx12Feature->Evaluate(cmdList, InParameters);
