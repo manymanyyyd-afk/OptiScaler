@@ -1038,8 +1038,11 @@ void MenuCommon::RenderUpscalerCombo(const API api, Upscaler currentUpscaler, co
         for (auto opt : options)
         {
             // Check if GPU is capable of a given backend
-            bool isCapable = (opt == Upscaler::DLSS) ? primaryGpu.dlssCapable : true;
-            if (!isCapable)
+            if (opt == Upscaler::DLSS && !primaryGpu.dlssCapable)
+                continue;
+
+            // Not all Intel GPUs support native DX11 XeSS but don't think we have a good way to check exactly
+            if (opt == Upscaler::XeSS && api == API::DX11 && primaryGpu.vendorId != VendorId::Intel)
                 continue;
 
             bool isSelected = (currentUpscaler == opt);
