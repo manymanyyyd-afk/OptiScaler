@@ -47,6 +47,7 @@
 #include <cwctype>
 #include <version_check.h>
 #include <misc/IdentifyGpu.h>
+#include <sha1/sha1.hpp>
 
 static std::vector<HMODULE> _asiHandles;
 static bool _passThruMode = false;
@@ -1266,6 +1267,20 @@ static void CheckQuirks(bool isNvidia)
         LOG_INFO("Game's Product Version: {}.{}.{}.{}", productVersion.major, productVersion.minor,
                  productVersion.patch, productVersion.reserved);
     }
+
+#ifndef _DEBUG
+    // Hash is very slow on Debug builds + we don't need to check our own hashes
+    if (Config::Instance()->LogToFile.value_or_default() && Config::Instance()->LogLevel.value_or_default() == 0)
+    {
+        SHA1 checksum;
+        std::ifstream file(Util::ExePath(), std::ios::binary);
+
+        checksum.update(file);
+        const std::string hash = checksum.final();
+
+        LOG_TRACE("Game's Exe SHA1: {}", hash);
+    }
+#endif
 
     auto quirks = getQuirksForExe(exePathFilename);
 
